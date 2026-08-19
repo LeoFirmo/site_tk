@@ -5,10 +5,9 @@ const { JWT } = require('google-auth-library');
 const app = express();
 
 app.get('/api/imagem', async (req, res) => {
-    // Permite passar o nome do site tanto por ?t= quanto por ?site=
     const nomeSite = req.query.t || req.query.site || 'Site Indefinido';
 
-    // 1. Captura de IP e Geolocalizacao (Vercel)
+    // 1. IP e Geolocalização (Vercel)
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
     const ip = rawIp.split(',')[0].trim() || 'N/A';
     const pais = req.headers['x-vercel-ip-country'] || 'N/A';
@@ -17,9 +16,17 @@ app.get('/api/imagem', async (req, res) => {
         ? decodeURIComponent(req.headers['x-vercel-ip-city'])
         : 'N/A';
 
-    // 2. Metadados do Acesso
+    // 2. Extração do Idioma principal do navegador
+    const rawLang = req.headers['accept-language'] || '';
+    const idioma = rawLang ? rawLang.split(',')[0].trim() : 'N/A';
+
+    // 3. Detecção se é Celular ou Computador
+    const userAgent = req.headers['user-agent'] || '';
+    const ehCelular = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    const tipoDispositivo = userAgent ? (ehCelular ? 'Celular' : 'Computador') : 'N/A';
+
+    // 4. Metadados do Acesso
     const origem = req.headers['referer'] || 'Acesso Direto';
-    const dispositivo = req.headers['user-agent'] || 'N/A';
     const dataHoraSP = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
     // Pixel 1x1 transparente
@@ -36,7 +43,7 @@ app.get('/api/imagem', async (req, res) => {
         await doc.loadInfo();
         const sheet = doc.sheetsByIndex[0];
 
-        // Registro na planilha com as colunas exatas solicitadas
+        // Registro dos dados na planilha
         await sheet.addRow({
             'Site': nomeSite,
             'Data Abertura': dataHoraSP,
@@ -44,8 +51,10 @@ app.get('/api/imagem', async (req, res) => {
             'Cidade': cidade,
             'Estado': estado,
             'País': pais,
+            'Idioma': idioma,
+            'Tipo Dispositivo': tipoDispositivo,
             'Origem': origem,
-            'Dispositivo': dispositivo
+            'Dispositivo': userAgent || 'N/A'
         });
 
     } catch (error) {
