@@ -5,33 +5,44 @@ const { JWT } = require('google-auth-library');
 const app = express();
 
 app.get('/api/imagem', async (req, res) => {
-    // Parâmetros reduzidos conforme sua solicitação
     const { e, timeD, t, AK, AH, AD } = req.query;
-    
+
+    // 1. Extração do IP real do visitante
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const ip = rawIp.split(',')[0].trim() || 'N/A';
+
+    // 2. Extração dos dados de geolocalização via cabeçalhos da Vercel
+    const pais = req.headers['x-vercel-ip-country'] || 'N/A';
+    const estado = req.headers['x-vercel-ip-country-region'] || 'N/A';
+    const cidade = req.headers['x-vercel-ip-city']
+        ? decodeURIComponent(req.headers['x-vercel-ip-city'])
+        : 'N/A';
+
+    // 3. Informações de contexto (origem do site e navegador/dispositivo)
+    const origem = req.headers['referer'] || 'Acesso Direto';
+    const dispositivo = req.headers['user-agent'] || 'N/A';
+
     let linkFinal = null;
 
-    // Lógica de montagem de Links
+    // Lógica de montagem de Links de redirecionamento (caso usado em cliques)
     if (AK) {
-        // Kiwify: Base + Parâmetro enviado
         linkFinal = `https://pay.kiwify.com.br/${AK}`;
     } else if (AH) {
-        // Hotmart: Base + ID enviado
         linkFinal = `https://go.hotmart.com/${AH}`;
     } else if (AD) {
-        // Digistore24: Base enviada + seu ID fixo de afiliado
-        // Removemos uma possível barra no final para padronizar antes de anexar o ID
         const baseUrl = AD.endsWith('/') ? AD.slice(0, -1) : AD;
         linkFinal = `${baseUrl}#aff=leofirmo`;
     }
 
+    // Pixel transparente de 1x1 em formato PNG
     const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
     const agora = Date.now();
     const momentoDisparo = Number(timeD);
     const diferencaSegundos = (agora - momentoDisparo) / 1000;
 
-    // Anti-bot apenas para abertura (quando não há link de redirecionamento)
+    // Filtro anti-robô para aberturas imediatas em disparos de e-mail
     if (!linkFinal && !isNaN(momentoDisparo) && diferencaSegundos < 30) {
-        console.log(`🤖 Bot detectado: ${e}`);
+        console.log(`Robô detectado: ${e}`);
         res.setHeader('Content-Type', 'image/png');
         return res.status(200).send(pixel);
     }
@@ -47,31 +58,38 @@ app.get('/api/imagem', async (req, res) => {
         await doc.loadInfo();
         const sheet = doc.sheetsByIndex[0];
 
-        const disparoLegivel = !isNaN(momentoDisparo) 
+        const disparoLegivel = !isNaN(momentoDisparo)
             ? new Date(momentoDisparo).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
             : 'N/A';
 
-        // Registro na planilha com a coluna 'Link clicado'
+        const dataAberturaSaoPaulo = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        // Gravação dos dados na planilha
         await sheet.addRow({
             'Email': e || 'N/A',
             'Horário Disparo': disparoLegivel,
-            'Data Abertura': new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-            'Assunto': t || 'Sem Assunto',
-            'Link clicado': linkFinal || '' 
+            'Data Abertura': dataAberturaSaoPaulo,
+            'Assunto': t || 'Acesso Direto ao Site',
+            'Link clicado': linkFinal || '',
+            'IP': ip,
+            'Cidade': cidade,
+            'Estado': estado,
+            'País': pais,
+            'Origem': origem,
+            'Dispositivo': dispositivo
         });
 
     } catch (error) {
-        console.error('❌ Erro no Sheets:', error.message);
+        console.error('Erro ao registrar no Google Sheets:', error.message);
     } finally {
         if (linkFinal) {
-            // Redireciona para o link de afiliado montado
             return res.redirect(linkFinal);
         }
 
         if (!res.headersSent) {
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-            res.status(200).send(pixel);
+            return res.status(200).send(pixel);
         }
     }
 });
