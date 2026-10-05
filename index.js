@@ -1,30 +1,21 @@
 const express = require('express');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
+const crypto = require('crypto');
 
 const app = express();
+
 
 /*
 |--------------------------------------------------------------------------
 | CONFIGURAÇÃO DOS PRODUTOS
 |--------------------------------------------------------------------------
-|
-| Cada produto possui:
-|
-| default: destino usado quando o país não estiver configurado.
-|
-| paises: destinos específicos por país.
-|
-| IMPORTANTE:
-| Para mudar o default de um produto, altere SOMENTE a linha "default".
-|
 */
 
 const produtos = {
 
     'akemi-coffee-boost': {
         default: 'https://www.google.com.br/',
-
         paises: {
             US: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
             CA: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
@@ -32,16 +23,15 @@ const produtos = {
         }
     },
 
-
     'vitaslimex': {
         default: 'https://www.google.com.br/',
-
         paises: {
             FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             BE: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             ES: 'https://www.pixlbonk.com/L1HDNH9/698ABCD/'
         }
+
     }
 
 };
@@ -54,11 +44,10 @@ const produtos = {
 |
 | Isso NÃO é o default dos produtos.
 |
-| É usado somente se alguém chamar /api/go sem um produto válido.
-|
 */
 
-const fallbackSistema = 'https://www.google.com.br/';
+const fallbackSistema =
+    'https://www.google.com.br/';
 
 
 /*
@@ -67,12 +56,13 @@ const fallbackSistema = 'https://www.google.com.br/';
 |--------------------------------------------------------------------------
 */
 
-const tradutorPais = new Intl.DisplayNames(
-    ['pt-BR'],
-    {
-        type: 'region'
-    }
-);
+const tradutorPais =
+    new Intl.DisplayNames(
+        ['pt-BR'],
+        {
+            type: 'region'
+        }
+    );
 
 
 /*
@@ -82,6 +72,7 @@ const tradutorPais = new Intl.DisplayNames(
 */
 
 const estadosBrasil = {
+
     'AC': 'Acre',
     'AL': 'Alagoas',
     'AP': 'Amapá',
@@ -109,12 +100,13 @@ const estadosBrasil = {
     'SP': 'São Paulo',
     'SE': 'Sergipe',
     'TO': 'Tocantins'
+
 };
 
 
 /*
 |--------------------------------------------------------------------------
-| OBTÉM O IP DO VISITANTE
+| OBTÉM O IP
 |--------------------------------------------------------------------------
 */
 
@@ -136,7 +128,7 @@ function obterIp(req) {
 
 /*
 |--------------------------------------------------------------------------
-| VERIFICA SE O IP É VÁLIDO PARA CONSULTA EXTERNA
+| VERIFICA IP
 |--------------------------------------------------------------------------
 */
 
@@ -162,7 +154,8 @@ function ipValido(ip) {
         return false;
     }
 
-    if (ip.startsWith('172.16.') ||
+    if (
+        ip.startsWith('172.16.') ||
         ip.startsWith('172.17.') ||
         ip.startsWith('172.18.') ||
         ip.startsWith('172.19.') ||
@@ -177,8 +170,8 @@ function ipValido(ip) {
         ip.startsWith('172.28.') ||
         ip.startsWith('172.29.') ||
         ip.startsWith('172.30.') ||
-        ip.startsWith('172.31.')) {
-
+        ip.startsWith('172.31.')
+    ) {
         return false;
     }
 
@@ -188,22 +181,19 @@ function ipValido(ip) {
 
 /*
 |--------------------------------------------------------------------------
-| OBTÉM LOCALIZAÇÃO DO VISITANTE
+| OBTÉM LOCALIZAÇÃO
 |--------------------------------------------------------------------------
-|
-| Primeiro tenta os cabeçalhos da Vercel.
-|
-| Depois tenta complementar os dados através do ip-api.
-|
 */
 
 async function obterLocalizacao(req) {
 
-    const ip = obterIp(req);
+    const ip =
+        obterIp(req);
+
 
     /*
     |--------------------------------------------------------------------------
-    | Dados da Vercel
+    | Vercel
     |--------------------------------------------------------------------------
     */
 
@@ -222,15 +212,18 @@ async function obterLocalizacao(req) {
     |--------------------------------------------------------------------------
     */
 
-    let cidade = 'Não Identificada';
+    let cidade =
+        'Não Identificada';
+
 
     if (req.headers['x-vercel-ip-city']) {
 
         try {
 
-            cidade = decodeURIComponent(
-                req.headers['x-vercel-ip-city']
-            );
+            cidade =
+                decodeURIComponent(
+                    req.headers['x-vercel-ip-city']
+                );
 
         } catch {
 
@@ -248,7 +241,9 @@ async function obterLocalizacao(req) {
     |--------------------------------------------------------------------------
     */
 
-    let estado = siglaRegiao;
+    let estado =
+        siglaRegiao;
+
 
     if (
         siglaPais === 'BR' &&
@@ -267,7 +262,9 @@ async function obterLocalizacao(req) {
     |--------------------------------------------------------------------------
     */
 
-    let pais = 'Não Identificado';
+    let pais =
+        'Não Identificado';
+
 
     if (siglaPais !== 'N/A') {
 
@@ -279,7 +276,8 @@ async function obterLocalizacao(req) {
 
         } catch {
 
-            pais = siglaPais;
+            pais =
+                siglaPais;
 
         }
 
@@ -288,7 +286,7 @@ async function obterLocalizacao(req) {
 
     /*
     |--------------------------------------------------------------------------
-    | Consulta externa pelo IP
+    | Consulta externa
     |--------------------------------------------------------------------------
     */
 
@@ -299,6 +297,7 @@ async function obterLocalizacao(req) {
             const controller =
                 new AbortController();
 
+
             const timeoutId =
                 setTimeout(
                     () => controller.abort(),
@@ -306,12 +305,13 @@ async function obterLocalizacao(req) {
                 );
 
 
-            const resposta = await fetch(
-                `http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city&lang=pt-BR`,
-                {
-                    signal: controller.signal
-                }
-            );
+            const resposta =
+                await fetch(
+                    `http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city&lang=pt-BR`,
+                    {
+                        signal: controller.signal
+                    }
+                );
 
 
             clearTimeout(timeoutId);
@@ -347,20 +347,25 @@ async function obterLocalizacao(req) {
                 }
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | O código do país retornado pelo ip-api
-                |--------------------------------------------------------------------------
-                */
-
                 if (dados.countryCode) {
 
                     return {
-                        ip: ip,
-                        codigoPais: dados.countryCode.toUpperCase(),
-                        pais: pais,
-                        cidade: cidade,
-                        estado: estado
+
+                        ip:
+                            ip,
+
+                        codigoPais:
+                            dados.countryCode.toUpperCase(),
+
+                        pais:
+                            pais,
+
+                        cidade:
+                            cidade,
+
+                        estado:
+                            estado
+
                     };
 
                 }
@@ -370,7 +375,7 @@ async function obterLocalizacao(req) {
         } catch (erroGeo) {
 
             console.error(
-                'Consulta externa de geolocalizacao falhou, utilizando dados da Vercel:',
+                'Consulta externa de geolocalizacao falhou:',
                 erroGeo.message
             );
 
@@ -381,20 +386,29 @@ async function obterLocalizacao(req) {
 
     /*
     |--------------------------------------------------------------------------
-    | Retorna os dados da Vercel caso a consulta externa falhe
+    | Retorno da Vercel
     |--------------------------------------------------------------------------
     */
 
     return {
-        ip: ip,
+
+        ip:
+            ip,
+
         codigoPais:
             siglaPais !== 'N/A'
                 ? siglaPais.toUpperCase()
                 : 'N/A',
 
-        pais: pais,
-        cidade: cidade,
-        estado: estado
+        pais:
+            pais,
+
+        cidade:
+            cidade,
+
+        estado:
+            estado
+
     };
 
 }
@@ -402,10 +416,63 @@ async function obterLocalizacao(req) {
 
 /*
 |--------------------------------------------------------------------------
-| REGISTRA VISITA NA GOOGLE SHEETS
+| AUTENTICAÇÃO GOOGLE
+|--------------------------------------------------------------------------
+*/
+
+function criarAutenticacaoGoogle() {
+
+    return new JWT({
+
+        email:
+            process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+
+        key:
+            process.env.GOOGLE_PRIVATE_KEY
+                .replace(/\\n/g, '\n'),
+
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets'
+        ]
+
+    });
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| OBTÉM PLANILHA
+|--------------------------------------------------------------------------
+*/
+
+async function obterPlanilha() {
+
+    const auth =
+        criarAutenticacaoGoogle();
+
+
+    const doc =
+        new GoogleSpreadsheet(
+            process.env.GOOGLE_SHEET_ID,
+            auth
+        );
+
+
+    await doc.loadInfo();
+
+
+    return doc.sheetsByIndex[0];
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| REGISTRA VISITA
 |--------------------------------------------------------------------------
 |
-| Mantém exatamente as mesmas colunas:
+| Colunas:
 |
 | Site
 | Data Abertura
@@ -417,10 +484,13 @@ async function obterLocalizacao(req) {
 | Tipo Dispositivo
 | Origem
 | Dispositivo
+| ID Visita
+| Tempo na Página (segundos)
 |
 */
 
 async function registrarVisita({
+
     site,
     ip,
     cidade,
@@ -429,38 +499,15 @@ async function registrarVisita({
     idioma,
     tipoDispositivo,
     origem,
-    userAgent
+    userAgent,
+    visitId
+
 }) {
 
     try {
 
-        const serviceAccountAuth =
-            new JWT({
-                email:
-                    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-
-                key:
-                    process.env.GOOGLE_PRIVATE_KEY
-                        .replace(/\\n/g, '\n'),
-
-                scopes: [
-                    'https://www.googleapis.com/auth/spreadsheets'
-                ]
-            });
-
-
-        const doc =
-            new GoogleSpreadsheet(
-                process.env.GOOGLE_SHEET_ID,
-                serviceAccountAuth
-            );
-
-
-        await doc.loadInfo();
-
-
         const sheet =
-            doc.sheetsByIndex[0];
+            await obterPlanilha();
 
 
         await sheet.addRow({
@@ -500,17 +547,18 @@ async function registrarVisita({
 
             'Dispositivo':
                 userAgent ||
-                'Não Identificado'
+                'Não Identificado',
+
+            'ID Visita':
+                visitId,
+
+            'Tempo na Página (segundos)':
+                ''
+
         });
 
 
     } catch (error) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | Se a planilha falhar, NÃO impede o restante da operação.
-        |--------------------------------------------------------------------------
-        */
 
         console.error(
             'Erro ao registrar visita na planilha:',
@@ -527,13 +575,7 @@ async function registrarVisita({
 | /api/imagem
 |--------------------------------------------------------------------------
 |
-| ROTA ANTIGA
-|
-| Essa rota continua funcionando como antes.
-|
-| Exemplo:
-|
-| /api/imagem?site=Stelle
+| REGISTRA A ENTRADA NA PÁGINA
 |
 */
 
@@ -543,6 +585,23 @@ app.get('/api/imagem', async (req, res) => {
         req.query.site ||
         req.query.t ||
         'Site Indefinido';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ID da visita
+    |--------------------------------------------------------------------------
+    |
+    | O navegador envia um ID.
+    | Se não enviar, criamos um novo.
+    |
+    */
+
+    const visitId =
+        String(
+            req.query.visitId ||
+            crypto.randomUUID()
+        );
 
 
     /*
@@ -564,6 +623,7 @@ app.get('/api/imagem', async (req, res) => {
     const rawLang =
         req.headers['accept-language'] ||
         '';
+
 
     const idioma =
         rawLang
@@ -610,7 +670,7 @@ app.get('/api/imagem', async (req, res) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Registra no Google Sheets
+    | Registra
     |--------------------------------------------------------------------------
     */
 
@@ -641,13 +701,17 @@ app.get('/api/imagem', async (req, res) => {
             origem,
 
         userAgent:
-            userAgent
+            userAgent,
+
+        visitId:
+            visitId
+
     });
 
 
     /*
     |--------------------------------------------------------------------------
-    | Pixel 1x1 transparente
+    | Pixel
     |--------------------------------------------------------------------------
     */
 
@@ -679,31 +743,159 @@ app.get('/api/imagem', async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
+| /api/tempo
+|--------------------------------------------------------------------------
+|
+| ATUALIZA O TEMPO DA VISITA
+|
+*/
+
+app.get('/api/tempo', async (req, res) => {
+
+    const visitId =
+        String(
+            req.query.visitId ||
+            ''
+        ).trim();
+
+
+    const tempo =
+        Number(
+            req.query.tempo
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validação
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !visitId ||
+        !Number.isFinite(tempo) ||
+        tempo < 0
+    ) {
+
+        return res
+            .status(400)
+            .send('Dados inválidos.');
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Limite de segurança
+    |--------------------------------------------------------------------------
+    |
+    | 7 dias em segundos.
+    |
+    */
+
+    const tempoSeguro =
+        Math.min(
+            Math.round(tempo),
+            604800
+        );
+
+
+    try {
+
+        const sheet =
+            await obterPlanilha();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Carrega as linhas
+        |--------------------------------------------------------------------------
+        */
+
+        const rows =
+            await sheet.getRows();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Procura o ID da visita
+        |--------------------------------------------------------------------------
+        */
+
+        const linha =
+            rows.find(
+                row =>
+                    String(
+                        row['ID Visita'] || ''
+                    ) === visitId
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Não encontrou
+        |--------------------------------------------------------------------------
+        */
+
+        if (!linha) {
+
+            console.error(
+                `ID de visita não encontrado: ${visitId}`
+            );
+
+
+            return res
+                .status(404)
+                .send('Visita não encontrada.');
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Atualiza o tempo
+        |--------------------------------------------------------------------------
+        */
+
+        linha['Tempo na Página (segundos)'] =
+            tempoSeguro;
+
+
+        await linha.save();
+
+
+        return res
+            .status(200)
+            .send('OK');
+
+
+    } catch (error) {
+
+        console.error(
+            'Erro ao atualizar tempo da página:',
+            error.message
+        );
+
+
+        return res
+            .status(500)
+            .send('Erro interno.');
+
+    }
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
 | /api/go
 |--------------------------------------------------------------------------
 |
-| NOVA ROTA
-|
-| Exemplo:
-|
-| /api/go?product=akemi-coffee-boost&site=Akemi-coofe-boost-redireciona
-|
-| Fluxo:
-|
-| 1. Descobre o país
-| 2. Registra o clique
-| 3. Escolhe o destino
-| 4. Redireciona
+| REGISTRA O CLIQUE E REDIRECIONA
 |
 */
 
 app.get('/api/go', async (req, res) => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Produto
-    |--------------------------------------------------------------------------
-    */
 
     const product =
         String(
@@ -713,12 +905,6 @@ app.get('/api/go', async (req, res) => {
         .trim()
         .toLowerCase();
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Nome que será registrado na planilha
-    |--------------------------------------------------------------------------
-    */
 
     const nomeSite =
         String(
@@ -748,6 +934,7 @@ app.get('/api/go', async (req, res) => {
     const rawLang =
         req.headers['accept-language'] ||
         '';
+
 
     const idioma =
         rawLang
@@ -794,7 +981,7 @@ app.get('/api/go', async (req, res) => {
 
     /*
     |--------------------------------------------------------------------------
-    | REGISTRA O CLIQUE ANTES DO REDIRECIONAMENTO
+    | Registra o clique
     |--------------------------------------------------------------------------
     */
 
@@ -825,13 +1012,17 @@ app.get('/api/go', async (req, res) => {
             origem,
 
         userAgent:
-            userAgent
+            userAgent,
+
+        visitId:
+            crypto.randomUUID()
+
     });
 
 
     /*
     |--------------------------------------------------------------------------
-    | PROCURA O PRODUTO
+    | Procura produto
     |--------------------------------------------------------------------------
     */
 
@@ -841,11 +1032,8 @@ app.get('/api/go', async (req, res) => {
 
     /*
     |--------------------------------------------------------------------------
-    | PRODUTO NÃO EXISTE
+    | Produto inexistente
     |--------------------------------------------------------------------------
-    |
-    | Usa apenas o fallback de segurança do sistema.
-    |
     */
 
     if (!produto) {
@@ -865,11 +1053,14 @@ app.get('/api/go', async (req, res) => {
 
     /*
     |--------------------------------------------------------------------------
-    | ESCOLHE O DESTINO
+    | ESCOLHA DO DESTINO
     |--------------------------------------------------------------------------
     |
-    | 1. País configurado
-    | 2. Default do próprio produto
+    | Primeiro:
+    | país específico
+    |
+    | Depois:
+    | default daquele produto
     |
     */
 
@@ -902,9 +1093,11 @@ app.get('/api/go', async (req, res) => {
 
 app.get('/', (req, res) => {
 
-    return res.status(200).send(
-        'Servidor de rastreamento e redirecionamento online.'
-    );
+    return res
+        .status(200)
+        .send(
+            'Servidor de rastreamento e redirecionamento online.'
+        );
 
 });
 
