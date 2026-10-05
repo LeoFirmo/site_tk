@@ -625,374 +625,93 @@ app.get('/api/imagem', async (req, res) => {
 */
 
 async function atualizarTempoPagina(req, res) {
+    const visitId = req.query.visitId;
+    const tempo = req.query.tempo;
 
-    /*
-     * Aceita:
-     *
-     * GET:
-     * /api/tempo?visitId=XXX&tempo=10
-     *
-     * POST:
-     * /api/tempo?visitId=XXX&tempo=10
-     */
+    if (!visitId || !tempo) {
+        return res.status(400).send('Parâmetros ausentes.');
+    }
 
-    const visitId =
-        String(
-            req.query.visitId ||
-            (req.body && req.body.visitId) ||
-            ''
-        ).trim();
+    const tempoSeguro = Math.max(1, parseInt(tempo, 10) || 1);
 
+    try {
+        const serviceAccountAuth = new JWT({
+            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
 
-    const tempoRaw =
-        req.query.tempo ||
-        (req.body && req.body.tempo);
+        const doc = new GoogleSpreadsheet(
+            process.env.GOOGLE_SHEET_ID,
+            serviceAccountAuth
+        );
 
+        await doc.loadInfo();
 
-    const tempo =
-        Number(tempoRaw);
+        const sheet = doc.sheetsByIndex[0];
 
+        // Garante que os cabeçalhos estejam carregados
+        await sheet.loadHeaderRow();
 
-    /*
-     * Validação.
-     */
+        const colunaId = 'ID Visita';
+        const colunaTempo = 'Tempo na Página (segundos)';
 
-    if (
-        !visitId ||
-        !Number.isFinite(tempo) ||
-        tempo < 0
-    ) {
+        // Carrega todas as linhas
+        const rows = await sheet.getRows();
 
+        console.log(`Procurando ID: ${visitId}`);
+        console.log(`Total de linhas encontradas: ${rows.length}`);
+
+        let linhaEncontrada = null;
+
+        for (const row of rows) {
+            let idDaLinha = '';
+
+            try {
+                idDaLinha = row.get(colunaId);
+            } catch (erro) {
+                console.log('Erro ao ler ID da linha:', erro.message);
+            }
+
+            if (String(idDaLinha).trim() === String(visitId).trim()) {
+                linhaEncontrada = row;
+                break;
+            }
+        }
+
+        if (!linhaEncontrada) {
+            console.log(`VISITA NÃO ENCONTRADA: ${visitId}`);
+
+            return res.status(404).send('Visita não encontrada.');
+        }
+
+        console.log(
+            `Linha encontrada. ID: ${linhaEncontrada.get(colunaId)}`
+        );
+
+        // Atualiza usando a API própria da biblioteca
+        linhaEncontrada.set(
+            colunaTempo,
+            tempoSeguro
+        );
+
+        // Salva efetivamente na planilha
+        await linhaEncontrada.save();
+
+        console.log(
+            `TEMPO ATUALIZADO COM SUCESSO | ID: ${visitId} | Tempo: ${tempoSeguro}s`
+        );
+
+        return res.status(200).send('OK');
+
+    } catch (error) {
         console.error(
-            'Dados inválidos recebidos em /api/tempo:',
-            {
-                visitId,
-                tempo
-            }
+            'ERRO AO ATUALIZAR TEMPO:',
+            error.message
         );
 
-
-        return res
-            .status(400)
-            .send(
-                'Dados inválidos.'
-            );
-
+        return res.status(500).send('Erro ao atualizar tempo.');
     }
-
-
-    /*
-     * Máximo de 7 dias.
-     */
-
-    const tempoSeguro =
-        Math.min(
-            Math.round(tempo),
-            604800
-        );
-
-
-    /*
-     * Número de tentativas.
-     */
-
-    const maxTentativas = 8;
-
-
-    /*
-     * Tenta localizar e atualizar a linha.
-     */
-
-    for (
-        let tentativa = 1;
-        tentativa <= maxTentativas;
-        tentativa++
-    ) {
-
-        try {
-
-            const sheet =
-                await obterPlanilha();
-
-
-            /*
-             * Carrega os cabeçalhos atuais.
-             */
-
-            await sheet.loadHeaderRow();
-
-
-            const headers =
-                sheet.headerValues ||
-                [];
-
-
-            /*
-             * Localiza as colunas.
-             */
-
-            const colunaId =
-                headers.findIndex(
-                    header =>
-                        String(header).trim() ===
-                        'ID Visita'
-                );
-
-
-            const colunaTempo =
-                headers.findIndex(
-                    header =>
-                        String(header).trim() ===
-                        'Tempo na Página (segundos)'
-                );
-
-
-            /*
-             * Verifica ID Visita.
-             */
-
-            if (colunaId === -1) {
-
-                console.error(
-                    'ERRO: coluna "ID Visita" não encontrada.'
-                );
-
-                console.error(
-                    'Cabeçalhos encontrados:',
-                    headers
-                );
-
-
-                return res
-                    .status(500)
-                    .send(
-                        'Coluna ID Visita não encontrada.'
-                    );
-
-            }
-
-
-            /*
-             * Verifica coluna de tempo.
-             */
-
-            if (colunaTempo === -1) {
-
-                console.error(
-                    'ERRO: coluna "Tempo na Página (segundos)" não encontrada.'
-                );
-
-                console.error(
-                    'Cabeçalhos encontrados:',
-                    headers
-                );
-
-
-                return res
-                    .status(500)
-                    .send(
-                        'Coluna Tempo na Página não encontrada.'
-                    );
-
-            }
-
-
-            /*
-             * Carrega as linhas.
-             */
-
-            const rows =
-                await sheet.getRows();
-
-
-            /*
-             * Procura pelo ID.
-             */
-
-            let linhaEncontrada =
-                null;
-
-
-            for (const row of rows) {
-
-                /*
-                 * Primeiro método:
-                 * propriedade pelo nome do cabeçalho.
-                 */
-
-                const idNormal =
-                    String(
-                        row['ID Visita'] ||
-                        ''
-                    ).trim();
-
-
-                if (
-                    idNormal === visitId
-                ) {
-
-                    linhaEncontrada =
-                        row;
-
-                    break;
-
-                }
-
-
-                /*
-                 * Segundo método:
-                 * posição exata da coluna.
-                 */
-
-                if (
-                    Array.isArray(
-                        row._rawData
-                    )
-                ) {
-
-                    const idRaw =
-                        String(
-                            row._rawData[
-                                colunaId
-                            ] ||
-                            ''
-                        ).trim();
-
-
-                    if (
-                        idRaw === visitId
-                    ) {
-
-                        linhaEncontrada =
-                            row;
-
-                        break;
-
-                    }
-
-                }
-
-            }
-
-
-            /*
-             * Encontrou a visita.
-             */
-
-            if (linhaEncontrada) {
-
-                /*
-                 * Atualiza o tempo.
-                 */
-
-                linhaEncontrada[
-                    'Tempo na Página (segundos)'
-                ] = tempoSeguro;
-
-
-                /*
-                 * Salva a mesma linha.
-                 */
-
-                await linhaEncontrada.save();
-
-
-                console.log(
-                    '========================================'
-                );
-
-                console.log(
-                    'TEMPO ATUALIZADO COM SUCESSO'
-                );
-
-                console.log(
-                    `ID Visita: ${visitId}`
-                );
-
-                console.log(
-                    `Tempo: ${tempoSeguro} segundos`
-                );
-
-                console.log(
-                    '========================================'
-                );
-
-
-                return res
-                    .status(200)
-                    .send('OK');
-
-            }
-
-
-            /*
-             * Ainda não encontrou.
-             */
-
-            console.log(
-                `ID não encontrado. Tentativa ${tentativa}/${maxTentativas} | ID: ${visitId}`
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                `Erro ao atualizar tempo. Tentativa ${tentativa}:`,
-                error.message
-            );
-
-        }
-
-
-        /*
-         * Espera 1 segundo antes de tentar novamente.
-         */
-
-        if (
-            tentativa <
-            maxTentativas
-        ) {
-
-            await new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        1000
-                    )
-            );
-
-        }
-
-    }
-
-
-    /*
-     * Não encontrou.
-     */
-
-    console.error(
-        '========================================'
-    );
-
-    console.error(
-        'VISITA NÃO ENCONTRADA'
-    );
-
-    console.error(
-        `ID: ${visitId}`
-    );
-
-    console.error(
-        '========================================'
-    );
-
-
-    return res
-        .status(404)
-        .send(
-            'Visita não encontrada.'
-        );
-
 }
 
 
