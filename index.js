@@ -4,13 +4,27 @@ const { JWT } = require('google-auth-library');
 
 const app = express();
 
-
-// ============================================================
-// CONFIGURAÇÃO DOS PRODUTOS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| CONFIGURAÇÃO DOS PRODUTOS
+|--------------------------------------------------------------------------
+|
+| Cada produto possui:
+|
+| default: destino usado quando o país não estiver configurado.
+|
+| paises: destinos específicos por país.
+|
+| IMPORTANTE:
+| Para mudar o default de um produto, altere SOMENTE a linha "default".
+|
+*/
 
 const produtos = {
+
     'akemi-coffee-boost': {
+        default: 'https://www.google.com.br/',
+
         paises: {
             US: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
             CA: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
@@ -18,7 +32,10 @@ const produtos = {
         }
     },
 
+
     'vitaslimex': {
+        default: 'https://www.google.com.br/',
+
         paises: {
             FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
@@ -26,28 +43,43 @@ const produtos = {
             ES: 'https://www.pixlbonk.com/L1HDNH9/698ABCD/'
         }
     }
+
 };
 
 
-// ============================================================
-// DESTINO PADRÃO
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| FALLBACK DE SEGURANÇA DO SISTEMA
+|--------------------------------------------------------------------------
+|
+| Isso NÃO é o default dos produtos.
+|
+| É usado somente se alguém chamar /api/go sem um produto válido.
+|
+*/
 
-const destinoPadrao = 'https://www.google.com.br/';
-
-
-// ============================================================
-// TRADUTOR DE PAÍSES
-// ============================================================
-
-const tradutorPais = new Intl.DisplayNames(['pt-BR'], {
-    type: 'region'
-});
+const fallbackSistema = 'https://www.google.com.br/';
 
 
-// ============================================================
-// ESTADOS BRASILEIROS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| TRADUTOR DE PAÍSES
+|--------------------------------------------------------------------------
+*/
+
+const tradutorPais = new Intl.DisplayNames(
+    ['pt-BR'],
+    {
+        type: 'region'
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| ESTADOS DO BRASIL
+|--------------------------------------------------------------------------
+*/
 
 const estadosBrasil = {
     'AC': 'Acre',
@@ -80,9 +112,11 @@ const estadosBrasil = {
 };
 
 
-// ============================================================
-// OBTÉM O IP
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| OBTÉM O IP DO VISITANTE
+|--------------------------------------------------------------------------
+*/
 
 function obterIp(req) {
 
@@ -91,57 +125,102 @@ function obterIp(req) {
         req.socket.remoteAddress ||
         '';
 
-    return rawIp.split(',')[0].trim() || 'N/A';
+    const ip =
+        rawIp
+            .split(',')[0]
+            .trim();
+
+    return ip || 'N/A';
 }
 
 
-// ============================================================
-// VERIFICA SE O IP PODE SER CONSULTADO
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| VERIFICA SE O IP É VÁLIDO PARA CONSULTA EXTERNA
+|--------------------------------------------------------------------------
+*/
 
 function ipValido(ip) {
 
-    return (
-        ip &&
-        ip !== 'N/A' &&
-        ip !== '127.0.0.1' &&
-        ip !== '::1' &&
-        !ip.startsWith('192.168.') &&
-        !ip.startsWith('10.') &&
-        !ip.startsWith('172.16.') &&
-        !ip.startsWith('172.17.') &&
-        !ip.startsWith('172.18.') &&
-        !ip.startsWith('172.19.') &&
-        !ip.startsWith('172.20.') &&
-        !ip.startsWith('172.21.') &&
-        !ip.startsWith('172.22.') &&
-        !ip.startsWith('172.23.') &&
-        !ip.startsWith('172.24.') &&
-        !ip.startsWith('172.25.') &&
-        !ip.startsWith('172.26.') &&
-        !ip.startsWith('172.27.') &&
-        !ip.startsWith('172.28.') &&
-        !ip.startsWith('172.29.') &&
-        !ip.startsWith('172.30.') &&
-        !ip.startsWith('172.31.')
-    );
+    if (!ip || ip === 'N/A') {
+        return false;
+    }
+
+    if (ip === '127.0.0.1') {
+        return false;
+    }
+
+    if (ip === '::1') {
+        return false;
+    }
+
+    if (ip.startsWith('192.168.')) {
+        return false;
+    }
+
+    if (ip.startsWith('10.')) {
+        return false;
+    }
+
+    if (ip.startsWith('172.16.') ||
+        ip.startsWith('172.17.') ||
+        ip.startsWith('172.18.') ||
+        ip.startsWith('172.19.') ||
+        ip.startsWith('172.20.') ||
+        ip.startsWith('172.21.') ||
+        ip.startsWith('172.22.') ||
+        ip.startsWith('172.23.') ||
+        ip.startsWith('172.24.') ||
+        ip.startsWith('172.25.') ||
+        ip.startsWith('172.26.') ||
+        ip.startsWith('172.27.') ||
+        ip.startsWith('172.28.') ||
+        ip.startsWith('172.29.') ||
+        ip.startsWith('172.30.') ||
+        ip.startsWith('172.31.')) {
+
+        return false;
+    }
+
+    return true;
 }
 
 
-// ============================================================
-// OBTÉM LOCALIZAÇÃO
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| OBTÉM LOCALIZAÇÃO DO VISITANTE
+|--------------------------------------------------------------------------
+|
+| Primeiro tenta os cabeçalhos da Vercel.
+|
+| Depois tenta complementar os dados através do ip-api.
+|
+*/
 
 async function obterLocalizacao(req) {
 
     const ip = obterIp(req);
 
-    // Dados fornecidos pela Vercel
+    /*
+    |--------------------------------------------------------------------------
+    | Dados da Vercel
+    |--------------------------------------------------------------------------
+    */
+
     const siglaPais =
-        req.headers['x-vercel-ip-country'] || 'N/A';
+        req.headers['x-vercel-ip-country'] ||
+        'N/A';
 
     const siglaRegiao =
-        req.headers['x-vercel-ip-country-region'] || 'N/A';
+        req.headers['x-vercel-ip-country-region'] ||
+        'N/A';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cidade
+    |--------------------------------------------------------------------------
+    */
 
     let cidade = 'Não Identificada';
 
@@ -157,14 +236,36 @@ async function obterLocalizacao(req) {
 
             cidade =
                 req.headers['x-vercel-ip-city'];
+
         }
+
     }
 
-    let estado =
+
+    /*
+    |--------------------------------------------------------------------------
+    | Estado
+    |--------------------------------------------------------------------------
+    */
+
+    let estado = siglaRegiao;
+
+    if (
         siglaPais === 'BR' &&
         estadosBrasil[siglaRegiao]
-            ? estadosBrasil[siglaRegiao]
-            : siglaRegiao;
+    ) {
+
+        estado =
+            estadosBrasil[siglaRegiao];
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | País
+    |--------------------------------------------------------------------------
+    */
 
     let pais = 'Não Identificado';
 
@@ -179,13 +280,17 @@ async function obterLocalizacao(req) {
         } catch {
 
             pais = siglaPais;
+
         }
+
     }
 
 
-    // ========================================================
-    // CONSULTA IP-API
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Consulta externa pelo IP
+    |--------------------------------------------------------------------------
+    */
 
     if (ipValido(ip)) {
 
@@ -195,170 +300,142 @@ async function obterLocalizacao(req) {
                 new AbortController();
 
             const timeoutId =
-                setTimeout(() => {
-                    controller.abort();
-                }, 2000);
-
-            const resposta =
-                await fetch(
-                    `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,countryCode&lang=pt-BR`,
-                    {
-                        signal: controller.signal
-                    }
+                setTimeout(
+                    () => controller.abort(),
+                    2000
                 );
 
+
+            const resposta = await fetch(
+                `http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city&lang=pt-BR`,
+                {
+                    signal: controller.signal
+                }
+            );
+
+
             clearTimeout(timeoutId);
+
 
             const dados =
                 await resposta.json();
 
+
             if (dados.status === 'success') {
 
-                cidade =
-                    dados.city ||
-                    cidade;
+                if (dados.city) {
 
-                estado =
-                    dados.regionName ||
-                    estado;
+                    cidade =
+                        dados.city;
 
-                pais =
-                    dados.country ||
-                    pais;
+                }
 
-                return {
 
-                    ip,
+                if (dados.regionName) {
 
-                    codigoPais:
-                        dados.countryCode
-                            ? dados.countryCode.toUpperCase()
-                            : (
-                                siglaPais !== 'N/A'
-                                    ? siglaPais.toUpperCase()
-                                    : null
-                            ),
+                    estado =
+                        dados.regionName;
 
-                    pais,
+                }
 
-                    cidade,
 
-                    estado
-                };
+                if (dados.country) {
+
+                    pais =
+                        dados.country;
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | O código do país retornado pelo ip-api
+                |--------------------------------------------------------------------------
+                */
+
+                if (dados.countryCode) {
+
+                    return {
+                        ip: ip,
+                        codigoPais: dados.countryCode.toUpperCase(),
+                        pais: pais,
+                        cidade: cidade,
+                        estado: estado
+                    };
+
+                }
+
             }
 
         } catch (erroGeo) {
 
             console.error(
-                'Consulta externa de geolocalização falhou. Usando dados da Vercel:',
+                'Consulta externa de geolocalizacao falhou, utilizando dados da Vercel:',
                 erroGeo.message
             );
+
         }
+
     }
 
 
-    // ========================================================
-    // FALLBACK PARA DADOS DA VERCEL
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Retorna os dados da Vercel caso a consulta externa falhe
+    |--------------------------------------------------------------------------
+    */
 
     return {
-
-        ip,
-
+        ip: ip,
         codigoPais:
             siglaPais !== 'N/A'
                 ? siglaPais.toUpperCase()
-                : null,
+                : 'N/A',
 
-        pais,
-
-        cidade,
-
-        estado
+        pais: pais,
+        cidade: cidade,
+        estado: estado
     };
+
 }
 
 
-// ============================================================
-// REGISTRA DADOS NA PLANILHA
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| REGISTRA VISITA NA GOOGLE SHEETS
+|--------------------------------------------------------------------------
+|
+| Mantém exatamente as mesmas colunas:
+|
+| Site
+| Data Abertura
+| IP
+| Cidade
+| Estado
+| País
+| Idioma
+| Tipo Dispositivo
+| Origem
+| Dispositivo
+|
+*/
 
-async function registrarVisita(
-    req,
-    localizacao,
-    nomeSite
-) {
-
-    // ========================================================
-    // IDIOMA
-    // ========================================================
-
-    const rawLang =
-        req.headers['accept-language'] || '';
-
-    const idioma =
-        rawLang
-            ? rawLang.split(',')[0].trim()
-            : 'Não Identificado';
-
-
-    // ========================================================
-    // USER AGENT
-    // ========================================================
-
-    const userAgent =
-        req.headers['user-agent'] || '';
-
-
-    // ========================================================
-    // TIPO DE DISPOSITIVO
-    // ========================================================
-
-    const ehCelular =
-        /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i
-            .test(userAgent);
-
-    const tipoDispositivo =
-        userAgent
-            ? (
-                ehCelular
-                    ? 'Celular'
-                    : 'Computador'
-            )
-            : 'Não Identificado';
-
-
-    // ========================================================
-    // ORIGEM
-    // ========================================================
-
-    const origem =
-        req.headers['referer'] ||
-        'Acesso Direto';
-
-
-    // ========================================================
-    // DATA/HORA DE SÃO PAULO
-    // ========================================================
-
-    const dataHoraSP =
-        new Date().toLocaleString(
-            'pt-BR',
-            {
-                timeZone: 'America/Sao_Paulo'
-            }
-        );
-
-
-    // ========================================================
-    // GOOGLE SHEETS
-    // ========================================================
+async function registrarVisita({
+    site,
+    ip,
+    cidade,
+    estado,
+    pais,
+    idioma,
+    tipoDispositivo,
+    origem,
+    userAgent
+}) {
 
     try {
 
         const serviceAccountAuth =
             new JWT({
-
                 email:
                     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
 
@@ -386,29 +463,31 @@ async function registrarVisita(
             doc.sheetsByIndex[0];
 
 
-        // ====================================================
-        // MESMAS 10 COLUNAS DE SEMPRE
-        // ====================================================
-
         await sheet.addRow({
 
             'Site':
-                nomeSite,
+                site,
 
             'Data Abertura':
-                dataHoraSP,
+                new Date().toLocaleString(
+                    'pt-BR',
+                    {
+                        timeZone:
+                            'America/Sao_Paulo'
+                    }
+                ),
 
             'IP':
-                localizacao.ip,
+                ip,
 
             'Cidade':
-                localizacao.cidade,
+                cidade,
 
             'Estado':
-                localizacao.estado,
+                estado,
 
             'País':
-                localizacao.pais,
+                pais,
 
             'Idioma':
                 idioma,
@@ -425,61 +504,152 @@ async function registrarVisita(
         });
 
 
-        console.log(
-            `Registro salvo na planilha: ${nomeSite}`
-        );
-
-
     } catch (error) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Se a planilha falhar, NÃO impede o restante da operação.
+        |--------------------------------------------------------------------------
+        */
 
         console.error(
             'Erro ao registrar visita na planilha:',
             error.message
         );
+
     }
+
 }
 
 
-// ============================================================
-// /api/imagem
-//
-// REGISTRO DA PRIMEIRA ETAPA:
-//
-// Google Ads
-//      ↓
-// Página principal
-//      ↓
-// /api/imagem
-//      ↓
-// Planilha
-//
-// ESTA ROTA CONTINUA COMPATÍVEL COM TODOS OS SITES ANTIGOS.
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| /api/imagem
+|--------------------------------------------------------------------------
+|
+| ROTA ANTIGA
+|
+| Essa rota continua funcionando como antes.
+|
+| Exemplo:
+|
+| /api/imagem?site=Stelle
+|
+*/
 
 app.get('/api/imagem', async (req, res) => {
 
     const nomeSite =
-        req.query.t ||
         req.query.site ||
+        req.query.t ||
         'Site Indefinido';
 
 
-    // Obtém localização
+    /*
+    |--------------------------------------------------------------------------
+    | Localização
+    |--------------------------------------------------------------------------
+    */
+
     const localizacao =
         await obterLocalizacao(req);
 
 
-    // Registra visita
-    await registrarVisita(
-        req,
-        localizacao,
-        nomeSite
-    );
+    /*
+    |--------------------------------------------------------------------------
+    | Idioma
+    |--------------------------------------------------------------------------
+    */
+
+    const rawLang =
+        req.headers['accept-language'] ||
+        '';
+
+    const idioma =
+        rawLang
+            ? rawLang.split(',')[0].trim()
+            : 'Não Identificado';
 
 
-    // ========================================================
-    // PIXEL 1x1 TRANSPARENTE
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Dispositivo
+    |--------------------------------------------------------------------------
+    */
+
+    const userAgent =
+        req.headers['user-agent'] ||
+        '';
+
+
+    const ehCelular =
+        /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i
+            .test(userAgent);
+
+
+    const tipoDispositivo =
+        userAgent
+            ? (
+                ehCelular
+                    ? 'Celular'
+                    : 'Computador'
+            )
+            : 'Não Identificado';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Origem
+    |--------------------------------------------------------------------------
+    */
+
+    const origem =
+        req.headers['referer'] ||
+        'Acesso Direto';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Registra no Google Sheets
+    |--------------------------------------------------------------------------
+    */
+
+    await registrarVisita({
+
+        site:
+            nomeSite,
+
+        ip:
+            localizacao.ip,
+
+        cidade:
+            localizacao.cidade,
+
+        estado:
+            localizacao.estado,
+
+        pais:
+            localizacao.pais,
+
+        idioma:
+            idioma,
+
+        tipoDispositivo:
+            tipoDispositivo,
+
+        origem:
+            origem,
+
+        userAgent:
+            userAgent
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pixel 1x1 transparente
+    |--------------------------------------------------------------------------
+    */
 
     const pixel =
         Buffer.from(
@@ -503,172 +673,246 @@ app.get('/api/imagem', async (req, res) => {
     return res
         .status(200)
         .send(pixel);
+
 });
 
 
-// ============================================================
-// /api/go
-//
-// REGISTRO DA SEGUNDA ETAPA:
-//
-// Pessoa clica no link de afiliado
-//      ↓
-// /api/go
-//      ↓
-// REGISTRA O CLIQUE NA PLANILHA
-//      ↓
-// IDENTIFICA PAÍS
-//      ↓
-// ESCOLHE OFERTA
-//      ↓
-// REDIRECIONA
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| /api/go
+|--------------------------------------------------------------------------
+|
+| NOVA ROTA
+|
+| Exemplo:
+|
+| /api/go?product=akemi-coffee-boost&site=Akemi-coofe-boost-redireciona
+|
+| Fluxo:
+|
+| 1. Descobre o país
+| 2. Registra o clique
+| 3. Escolhe o destino
+| 4. Redireciona
+|
+*/
 
 app.get('/api/go', async (req, res) => {
 
+    /*
+    |--------------------------------------------------------------------------
+    | Produto
+    |--------------------------------------------------------------------------
+    */
+
     const product =
         String(
-            req.query.product || ''
+            req.query.product ||
+            ''
         )
         .trim()
         .toLowerCase();
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Nome que será registrado na planilha
+    |--------------------------------------------------------------------------
+    */
+
     const nomeSite =
         String(
-            req.query.site || ''
+            req.query.site ||
+            product ||
+            'Clique'
         )
-        .trim() ||
-        'Redirecionamento';
+        .trim();
 
 
-    console.log(
-        `Clique recebido. Produto: ${product} | Site: ${nomeSite}`
-    );
-
-
-    // ========================================================
-    // OBTÉM LOCALIZAÇÃO
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Localização
+    |--------------------------------------------------------------------------
+    */
 
     const localizacao =
         await obterLocalizacao(req);
 
 
-    // ========================================================
-    // REGISTRA O SEGUNDO CLIQUE NA PLANILHA
-    //
-    // O valor de "site" será exatamente o que veio na URL.
-    //
-    // Exemplo:
-    //
-    // ?site=Akemi-coofe-boost-redireciona
-    //
-    // A planilha receberá:
-    //
-    // Akemi-coofe-boost-redireciona
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Idioma
+    |--------------------------------------------------------------------------
+    */
 
-    await registrarVisita(
-        req,
-        localizacao,
-        nomeSite
-    );
+    const rawLang =
+        req.headers['accept-language'] ||
+        '';
+
+    const idioma =
+        rawLang
+            ? rawLang.split(',')[0].trim()
+            : 'Não Identificado';
 
 
-    // ========================================================
-    // VERIFICA SE O PRODUTO EXISTE
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | Dispositivo
+    |--------------------------------------------------------------------------
+    */
+
+    const userAgent =
+        req.headers['user-agent'] ||
+        '';
+
+
+    const ehCelular =
+        /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i
+            .test(userAgent);
+
+
+    const tipoDispositivo =
+        userAgent
+            ? (
+                ehCelular
+                    ? 'Celular'
+                    : 'Computador'
+            )
+            : 'Não Identificado';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Origem
+    |--------------------------------------------------------------------------
+    */
+
+    const origem =
+        req.headers['referer'] ||
+        'Acesso Direto';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | REGISTRA O CLIQUE ANTES DO REDIRECIONAMENTO
+    |--------------------------------------------------------------------------
+    */
+
+    await registrarVisita({
+
+        site:
+            nomeSite,
+
+        ip:
+            localizacao.ip,
+
+        cidade:
+            localizacao.cidade,
+
+        estado:
+            localizacao.estado,
+
+        pais:
+            localizacao.pais,
+
+        idioma:
+            idioma,
+
+        tipoDispositivo:
+            tipoDispositivo,
+
+        origem:
+            origem,
+
+        userAgent:
+            userAgent
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PROCURA O PRODUTO
+    |--------------------------------------------------------------------------
+    */
 
     const produto =
         produtos[product];
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUTO NÃO EXISTE
+    |--------------------------------------------------------------------------
+    |
+    | Usa apenas o fallback de segurança do sistema.
+    |
+    */
+
     if (!produto) {
 
-        console.log(
-            `Produto não configurado: ${product}. Fallback.`
+        console.error(
+            `Produto não encontrado: ${product}`
         );
 
 
         return res.redirect(
             302,
-            destinoPadrao
+            fallbackSistema
         );
+
     }
 
 
-    // ========================================================
-    // IDENTIFICA PAÍS
-    // ========================================================
-
-    const codigoPais =
-        localizacao.codigoPais;
-
-
-    console.log(
-        `País identificado: ${codigoPais || 'Não identificado'}`
-    );
-
-
-    // ========================================================
-    // PROCURA OFERTA PARA O PAÍS
-    // ========================================================
+    /*
+    |--------------------------------------------------------------------------
+    | ESCOLHE O DESTINO
+    |--------------------------------------------------------------------------
+    |
+    | 1. País configurado
+    | 2. Default do próprio produto
+    |
+    */
 
     const destino =
-        codigoPais
-            ? produto.paises[codigoPais]
-            : null;
+        produto.paises[
+            localizacao.codigoPais
+        ] ||
+        produto.default;
 
 
-    // ========================================================
-    // SEM OFERTA → GOOGLE BRASIL
-    // ========================================================
-
-    if (!destino) {
-
-        console.log(
-            `Sem oferta para ${codigoPais || 'país desconhecido'} no produto ${product}. Fallback.`
-        );
-
-
-        return res.redirect(
-            302,
-            destinoPadrao
-        );
-    }
-
-
-    // ========================================================
-    // REDIRECIONA
-    // ========================================================
-
-    console.log(
-        `Redirecionando ${codigoPais} para ${destino}`
-    );
-
+    /*
+    |--------------------------------------------------------------------------
+    | REDIRECIONAMENTO
+    |--------------------------------------------------------------------------
+    */
 
     return res.redirect(
         302,
         destino
     );
+
 });
 
 
-// ============================================================
-// ROTA RAIZ
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| ROTA PRINCIPAL
+|--------------------------------------------------------------------------
+*/
 
 app.get('/', (req, res) => {
 
-    res.status(200).send(
-        'Servidor de tracking e redirecionamento funcionando.'
+    return res.status(200).send(
+        'Servidor de rastreamento e redirecionamento online.'
     );
+
 });
 
 
-// ============================================================
-// EXPORTAÇÃO PARA VERCEL
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| EXPORTAÇÃO
+|--------------------------------------------------------------------------
+*/
 
 module.exports = app;
