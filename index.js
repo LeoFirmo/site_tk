@@ -15,16 +15,22 @@ const app = express();
 const produtos = {
 
     'akemi-coffee-boost': {
+
         default: 'https://www.google.com.br/',
+
         paises: {
             US: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
             CA: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
             AU: 'https://www.treejammer.com/L1HDNH9/9KCZZ7S/'
         }
+
     },
 
+
     'vitaslimex': {
+
         default: 'https://www.google.com.br/',
+
         paises: {
             FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
@@ -39,11 +45,8 @@ const produtos = {
 
 /*
 |--------------------------------------------------------------------------
-| FALLBACK DE SEGURANÇA DO SISTEMA
+| FALLBACK DE SEGURANÇA
 |--------------------------------------------------------------------------
-|
-| Isso NÃO é o default dos produtos.
-|
 */
 
 const fallbackSistema =
@@ -106,7 +109,7 @@ const estadosBrasil = {
 
 /*
 |--------------------------------------------------------------------------
-| OBTÉM O IP
+| OBTÉM IP
 |--------------------------------------------------------------------------
 */
 
@@ -191,26 +194,15 @@ async function obterLocalizacao(req) {
         obterIp(req);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Vercel
-    |--------------------------------------------------------------------------
-    */
-
     const siglaPais =
         req.headers['x-vercel-ip-country'] ||
         'N/A';
+
 
     const siglaRegiao =
         req.headers['x-vercel-ip-country-region'] ||
         'N/A';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cidade
-    |--------------------------------------------------------------------------
-    */
 
     let cidade =
         'Não Identificada';
@@ -235,12 +227,6 @@ async function obterLocalizacao(req) {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Estado
-    |--------------------------------------------------------------------------
-    */
-
     let estado =
         siglaRegiao;
 
@@ -255,12 +241,6 @@ async function obterLocalizacao(req) {
 
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | País
-    |--------------------------------------------------------------------------
-    */
 
     let pais =
         'Não Identificado';
@@ -286,7 +266,7 @@ async function obterLocalizacao(req) {
 
     /*
     |--------------------------------------------------------------------------
-    | Consulta externa
+    | CONSULTA IP-API
     |--------------------------------------------------------------------------
     */
 
@@ -324,26 +304,17 @@ async function obterLocalizacao(req) {
             if (dados.status === 'success') {
 
                 if (dados.city) {
-
-                    cidade =
-                        dados.city;
-
+                    cidade = dados.city;
                 }
 
 
                 if (dados.regionName) {
-
-                    estado =
-                        dados.regionName;
-
+                    estado = dados.regionName;
                 }
 
 
                 if (dados.country) {
-
-                    pais =
-                        dados.country;
-
+                    pais = dados.country;
                 }
 
 
@@ -383,12 +354,6 @@ async function obterLocalizacao(req) {
 
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Retorno da Vercel
-    |--------------------------------------------------------------------------
-    */
 
     return {
 
@@ -471,22 +436,6 @@ async function obterPlanilha() {
 |--------------------------------------------------------------------------
 | REGISTRA VISITA
 |--------------------------------------------------------------------------
-|
-| Colunas:
-|
-| Site
-| Data Abertura
-| IP
-| Cidade
-| Estado
-| País
-| Idioma
-| Tipo Dispositivo
-| Origem
-| Dispositivo
-| ID Visita
-| Tempo na Página (segundos)
-|
 */
 
 async function registrarVisita({
@@ -558,12 +507,16 @@ async function registrarVisita({
         });
 
 
+        return true;
+
     } catch (error) {
 
         console.error(
             'Erro ao registrar visita na planilha:',
             error.message
         );
+
+        return false;
 
     }
 
@@ -574,9 +527,6 @@ async function registrarVisita({
 |--------------------------------------------------------------------------
 | /api/imagem
 |--------------------------------------------------------------------------
-|
-| REGISTRA A ENTRADA NA PÁGINA
-|
 */
 
 app.get('/api/imagem', async (req, res) => {
@@ -587,16 +537,6 @@ app.get('/api/imagem', async (req, res) => {
         'Site Indefinido';
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ID da visita
-    |--------------------------------------------------------------------------
-    |
-    | O navegador envia um ID.
-    | Se não enviar, criamos um novo.
-    |
-    */
-
     const visitId =
         String(
             req.query.visitId ||
@@ -604,21 +544,9 @@ app.get('/api/imagem', async (req, res) => {
         );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Localização
-    |--------------------------------------------------------------------------
-    */
-
     const localizacao =
         await obterLocalizacao(req);
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Idioma
-    |--------------------------------------------------------------------------
-    */
 
     const rawLang =
         req.headers['accept-language'] ||
@@ -630,12 +558,6 @@ app.get('/api/imagem', async (req, res) => {
             ? rawLang.split(',')[0].trim()
             : 'Não Identificado';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dispositivo
-    |--------------------------------------------------------------------------
-    */
 
     const userAgent =
         req.headers['user-agent'] ||
@@ -657,22 +579,10 @@ app.get('/api/imagem', async (req, res) => {
             : 'Não Identificado';
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Origem
-    |--------------------------------------------------------------------------
-    */
-
     const origem =
         req.headers['referer'] ||
         'Acesso Direto';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Registra
-    |--------------------------------------------------------------------------
-    */
 
     await registrarVisita({
 
@@ -709,12 +619,6 @@ app.get('/api/imagem', async (req, res) => {
     });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Pixel
-    |--------------------------------------------------------------------------
-    */
-
     const pixel =
         Buffer.from(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -746,8 +650,8 @@ app.get('/api/imagem', async (req, res) => {
 | /api/tempo
 |--------------------------------------------------------------------------
 |
-| ATUALIZA O TEMPO DA VISITA
-|
+| ATUALIZA A MESMA LINHA DA VISITA
+|--------------------------------------------------------------------------
 */
 
 app.get('/api/tempo', async (req, res) => {
@@ -765,12 +669,6 @@ app.get('/api/tempo', async (req, res) => {
         );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Validação
-    |--------------------------------------------------------------------------
-    */
-
     if (
         !visitId ||
         !Number.isFinite(tempo) ||
@@ -784,15 +682,6 @@ app.get('/api/tempo', async (req, res) => {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Limite de segurança
-    |--------------------------------------------------------------------------
-    |
-    | 7 dias em segundos.
-    |
-    */
-
     const tempoSeguro =
         Math.min(
             Math.round(tempo),
@@ -800,88 +689,126 @@ app.get('/api/tempo', async (req, res) => {
         );
 
 
-    try {
+    /*
+    |--------------------------------------------------------------------------
+    | TENTA LOCALIZAR A LINHA
+    |--------------------------------------------------------------------------
+    |
+    | Até 5 tentativas.
+    |
+    */
 
-        const sheet =
-            await obterPlanilha();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Carrega as linhas
-        |--------------------------------------------------------------------------
-        */
-
-        const rows =
-            await sheet.getRows();
+    const maxTentativas = 5;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Procura o ID da visita
-        |--------------------------------------------------------------------------
-        */
+    for (
+        let tentativa = 1;
+        tentativa <= maxTentativas;
+        tentativa++
+    ) {
 
-        const linha =
-            rows.find(
-                row =>
-                    String(
-                        row['ID Visita'] || ''
-                    ) === visitId
+        try {
+
+            const sheet =
+                await obterPlanilha();
+
+
+            const rows =
+                await sheet.getRows();
+
+
+            const linha =
+                rows.find(
+                    row =>
+                        String(
+                            row['ID Visita'] || ''
+                        ) === visitId
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ENCONTROU
+            |--------------------------------------------------------------------------
+            */
+
+            if (linha) {
+
+                linha['Tempo na Página (segundos)'] =
+                    tempoSeguro;
+
+
+                await linha.save();
+
+
+                console.log(
+                    `Tempo atualizado: ${tempoSeguro}s | Visita: ${visitId}`
+                );
+
+
+                return res
+                    .status(200)
+                    .send('OK');
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NÃO ENCONTROU
+            |--------------------------------------------------------------------------
+            */
+
+            console.log(
+                `Visita ainda não encontrada. Tentativa ${tentativa}/${maxTentativas}`
             );
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Não encontrou
-        |--------------------------------------------------------------------------
-        */
-
-        if (!linha) {
+        } catch (error) {
 
             console.error(
-                `ID de visita não encontrado: ${visitId}`
+                `Erro ao atualizar tempo. Tentativa ${tentativa}:`,
+                error.message
             );
-
-
-            return res
-                .status(404)
-                .send('Visita não encontrada.');
 
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | Atualiza o tempo
+        | Espera antes da próxima tentativa
         |--------------------------------------------------------------------------
         */
 
-        linha['Tempo na Página (segundos)'] =
-            tempoSeguro;
+        if (tentativa < maxTentativas) {
 
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        700
+                    )
+            );
 
-        await linha.save();
-
-
-        return res
-            .status(200)
-            .send('OK');
-
-
-    } catch (error) {
-
-        console.error(
-            'Erro ao atualizar tempo da página:',
-            error.message
-        );
-
-
-        return res
-            .status(500)
-            .send('Erro interno.');
+        }
 
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NÃO ENCONTROU APÓS TODAS AS TENTATIVAS
+    |--------------------------------------------------------------------------
+    */
+
+    console.error(
+        `Não foi possível localizar a visita: ${visitId}`
+    );
+
+
+    return res
+        .status(404)
+        .send('Visita não encontrada.');
 
 });
 
@@ -890,9 +817,6 @@ app.get('/api/tempo', async (req, res) => {
 |--------------------------------------------------------------------------
 | /api/go
 |--------------------------------------------------------------------------
-|
-| REGISTRA O CLIQUE E REDIRECIONA
-|
 */
 
 app.get('/api/go', async (req, res) => {
@@ -915,21 +839,9 @@ app.get('/api/go', async (req, res) => {
         .trim();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Localização
-    |--------------------------------------------------------------------------
-    */
-
     const localizacao =
         await obterLocalizacao(req);
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Idioma
-    |--------------------------------------------------------------------------
-    */
 
     const rawLang =
         req.headers['accept-language'] ||
@@ -941,12 +853,6 @@ app.get('/api/go', async (req, res) => {
             ? rawLang.split(',')[0].trim()
             : 'Não Identificado';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dispositivo
-    |--------------------------------------------------------------------------
-    */
 
     const userAgent =
         req.headers['user-agent'] ||
@@ -968,22 +874,10 @@ app.get('/api/go', async (req, res) => {
             : 'Não Identificado';
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Origem
-    |--------------------------------------------------------------------------
-    */
-
     const origem =
         req.headers['referer'] ||
         'Acesso Direto';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Registra o clique
-    |--------------------------------------------------------------------------
-    */
 
     await registrarVisita({
 
@@ -1020,21 +914,9 @@ app.get('/api/go', async (req, res) => {
     });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Procura produto
-    |--------------------------------------------------------------------------
-    */
-
     const produto =
         produtos[product];
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Produto inexistente
-    |--------------------------------------------------------------------------
-    */
 
     if (!produto) {
 
@@ -1051,31 +933,12 @@ app.get('/api/go', async (req, res) => {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ESCOLHA DO DESTINO
-    |--------------------------------------------------------------------------
-    |
-    | Primeiro:
-    | país específico
-    |
-    | Depois:
-    | default daquele produto
-    |
-    */
-
     const destino =
         produto.paises[
             localizacao.codigoPais
         ] ||
         produto.default;
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | REDIRECIONAMENTO
-    |--------------------------------------------------------------------------
-    */
 
     return res.redirect(
         302,
