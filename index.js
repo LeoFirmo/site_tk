@@ -37,13 +37,12 @@ const produtos = {
 
     'vitaslimex': {
 
-        default: 'https://www.google.com.br/',
+        default: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
 
         paises: {
             FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
             CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            BE: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            ES: 'https://www.pixlbonk.com/L1HDNH9/698ABCD/'
+            BE: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/'
         }
 
     }
