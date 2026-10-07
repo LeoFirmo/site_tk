@@ -5,6 +5,7 @@ const crypto = require('crypto');
 
 const app = express();
 
+
 /*
 |--------------------------------------------------------------------------
 | MIDDLEWARE
@@ -25,24 +26,41 @@ const produtos = {
 
     'akemi-coffee-boost': {
 
-        default: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
+        default:
+            'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
 
         paises: {
-            US: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
-            CA: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
-            AU: 'https://www.treejammer.com/L1HDNH9/9KCZZ7S/'
+
+            US:
+                'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
+
+            CA:
+                'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
+
+            AU:
+                'https://www.treejammer.com/L1HDNH9/9KCZZ7S/'
+
         }
 
     },
 
+
     'vitaslimex': {
 
-        default: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
+        default:
+            'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
 
         paises: {
-            FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            BE: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/'
+
+            FR:
+                'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
+
+            CH:
+                'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
+
+            BE:
+                'https://www.pixlbonk.com/L1HDNH9/992NJKS/'
+
         }
 
     }
@@ -174,6 +192,10 @@ function ipValido(ip) {
 |--------------------------------------------------------------------------
 | LOCALIZAÇÃO
 |--------------------------------------------------------------------------
+|
+| Usada somente no /api/imagem para enriquecer
+| os dados registrados na planilha.
+|
 */
 
 async function obterLocalizacao(req, ip) {
@@ -221,7 +243,8 @@ async function obterLocalizacao(req, ip) {
 
         } catch {
 
-            pais = codigoPais;
+            pais =
+                codigoPais;
 
         }
 
@@ -229,7 +252,8 @@ async function obterLocalizacao(req, ip) {
 
 
     /*
-     * Consulta externa.
+     * Consulta externa somente para enriquecer
+     * os dados da planilha.
      */
 
     if (ipValido(ip)) {
@@ -624,93 +648,196 @@ app.get('/api/imagem', async (req, res) => {
 */
 
 async function atualizarTempoPagina(req, res) {
-    const visitId = req.query.visitId;
-    const tempo = req.query.tempo;
+
+    const visitId =
+        req.query.visitId;
+
+    const tempo =
+        req.query.tempo;
+
 
     if (!visitId || !tempo) {
-        return res.status(400).send('Parâmetros ausentes.');
+
+        return res
+            .status(400)
+            .send('Parâmetros ausentes.');
+
     }
 
-    const tempoSeguro = Math.max(1, parseInt(tempo, 10) || 1);
+
+    const tempoSeguro =
+        Math.max(
+            1,
+            parseInt(tempo, 10) || 1
+        );
+
 
     try {
-        const serviceAccountAuth = new JWT({
-            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
 
-        const doc = new GoogleSpreadsheet(
-            process.env.GOOGLE_SHEET_ID,
-            serviceAccountAuth
-        );
+        const serviceAccountAuth =
+            new JWT({
+
+                email:
+                    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+
+                key:
+                    process.env.GOOGLE_PRIVATE_KEY
+                        .replace(/\\n/g, '\n'),
+
+                scopes: [
+                    'https://www.googleapis.com/auth/spreadsheets'
+                ]
+
+            });
+
+
+        const doc =
+            new GoogleSpreadsheet(
+                process.env.GOOGLE_SHEET_ID,
+                serviceAccountAuth
+            );
+
 
         await doc.loadInfo();
 
-        const sheet = doc.sheetsByIndex[0];
 
-        // Garante que os cabeçalhos estejam carregados
+        const sheet =
+            doc.sheetsByIndex[0];
+
+
+        /*
+         * Garante que os cabeçalhos
+         * estejam carregados.
+         */
+
         await sheet.loadHeaderRow();
 
-        const colunaId = 'ID Visita';
-        const colunaTempo = 'Tempo na Página (segundos)';
 
-        // Carrega todas as linhas
-        const rows = await sheet.getRows();
+        const colunaId =
+            'ID Visita';
 
-        console.log(`Procurando ID: ${visitId}`);
-        console.log(`Total de linhas encontradas: ${rows.length}`);
+        const colunaTempo =
+            'Tempo na Página (segundos)';
 
-        let linhaEncontrada = null;
+
+        /*
+         * Carrega as linhas.
+         */
+
+        const rows =
+            await sheet.getRows();
+
+
+        console.log(
+            `Procurando ID: ${visitId}`
+        );
+
+
+        console.log(
+            `Total de linhas encontradas: ${rows.length}`
+        );
+
+
+        let linhaEncontrada =
+            null;
+
 
         for (const row of rows) {
-            let idDaLinha = '';
+
+            let idDaLinha =
+                '';
+
 
             try {
-                idDaLinha = row.get(colunaId);
+
+                idDaLinha =
+                    row.get(colunaId);
+
             } catch (erro) {
-                console.log('Erro ao ler ID da linha:', erro.message);
+
+                console.log(
+                    'Erro ao ler ID da linha:',
+                    erro.message
+                );
+
             }
 
-            if (String(idDaLinha).trim() === String(visitId).trim()) {
-                linhaEncontrada = row;
+
+            if (
+                String(idDaLinha).trim() ===
+                String(visitId).trim()
+            ) {
+
+                linhaEncontrada =
+                    row;
+
                 break;
+
             }
+
         }
+
 
         if (!linhaEncontrada) {
-            console.log(`VISITA NÃO ENCONTRADA: ${visitId}`);
 
-            return res.status(404).send('Visita não encontrada.');
+            console.log(
+                `VISITA NÃO ENCONTRADA: ${visitId}`
+            );
+
+
+            return res
+                .status(404)
+                .send('Visita não encontrada.');
+
         }
+
 
         console.log(
             `Linha encontrada. ID: ${linhaEncontrada.get(colunaId)}`
         );
 
-        // Atualiza usando a API própria da biblioteca
+
+        /*
+         * Atualiza a coluna do tempo.
+         */
+
         linhaEncontrada.set(
             colunaTempo,
             tempoSeguro
         );
 
-        // Salva efetivamente na planilha
+
+        /*
+         * Salva efetivamente na planilha.
+         */
+
         await linhaEncontrada.save();
+
 
         console.log(
             `TEMPO ATUALIZADO COM SUCESSO | ID: ${visitId} | Tempo: ${tempoSeguro}s`
         );
 
-        return res.status(200).send('OK');
+
+        return res
+            .status(200)
+            .send('OK');
+
 
     } catch (error) {
+
         console.error(
             'ERRO AO ATUALIZAR TEMPO:',
             error.message
         );
 
-        return res.status(500).send('Erro ao atualizar tempo.');
+
+        return res
+            .status(500)
+            .send('Erro ao atualizar tempo.');
+
     }
+
 }
 
 
@@ -745,9 +872,22 @@ app.post(
 |--------------------------------------------------------------------------
 | REDIRECIONAMENTO POR PAÍS
 |--------------------------------------------------------------------------
+|
+| IMPORTANTE:
+|
+| Esta rota foi otimizada para ser extremamente rápida.
+|
+| NÃO consulta ip-api.com.
+| NÃO acessa o Google Sheets.
+|
+| A Vercel já informa o país através de:
+|
+| x-vercel-ip-country
+|
+|--------------------------------------------------------------------------
 */
 
-app.get('/api/go', async (req, res) => {
+app.get('/api/go', (req, res) => {
 
     /*
      * Produto.
@@ -757,18 +897,6 @@ app.get('/api/go', async (req, res) => {
         String(
             req.query.product ||
             ''
-        ).trim();
-
-
-    /*
-     * Nome do site.
-     */
-
-    const nomeSite =
-        String(
-            req.query.site ||
-            produtoNome ||
-            'Redirecionamento'
         ).trim();
 
 
@@ -801,180 +929,40 @@ app.get('/api/go', async (req, res) => {
 
 
     /*
-     * IP.
-     */
-
-    const ip =
-        obterIp(req);
-
-
-    /*
-     * Localização.
-     */
-
-    const localizacao =
-        await obterLocalizacao(
-            req,
-            ip
-        );
-
-
-    /*
-     * Procura URL do país.
-     */
-
-    const urlPais =
-        produto.paises[
-            localizacao.codigoPais
-        ];
-
-
-    /*
-     * Usa:
+     * País informado pela Vercel.
      *
-     * 1. URL específica do país
-     * 2. fallback do próprio produto
+     * Não fazemos consulta externa.
+     */
+
+    const codigoPais =
+        String(
+            req.headers['x-vercel-ip-country'] ||
+            ''
+        )
+            .trim()
+            .toUpperCase();
+
+
+    /*
+     * Procura URL específica do país.
      */
 
     const destino =
-        urlPais ||
+        produto.paises[codigoPais] ||
         produto.default;
 
 
     /*
-     * ID da visita.
+     * Log simples.
      */
 
-    const visitId =
-        crypto.randomUUID();
+    console.log(
+        `Redirecionamento | Produto: ${produtoNome} | País: ${codigoPais || 'N/A'} | Destino: ${destino}`
+    );
 
 
     /*
-     * Idioma.
-     */
-
-    const rawLang =
-        req.headers['accept-language'] ||
-        '';
-
-
-    const idioma =
-        rawLang
-            ? rawLang
-                .split(',')[0]
-                .trim()
-            : 'Não Identificado';
-
-
-    /*
-     * Dispositivo.
-     */
-
-    const userAgent =
-        req.headers['user-agent'] ||
-        '';
-
-
-    const ehCelular =
-        /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i
-            .test(userAgent);
-
-
-    const tipoDispositivo =
-        userAgent
-            ? (
-                ehCelular
-                    ? 'Celular'
-                    : 'Computador'
-            )
-            : 'Não Identificado';
-
-
-    /*
-     * Origem.
-     */
-
-    const origem =
-        req.headers['referer'] ||
-        'Acesso Direto';
-
-
-    /*
-     * Data/hora.
-     */
-
-    const dataHora =
-        new Date().toLocaleString(
-            'pt-BR',
-            {
-                timeZone:
-                    'America/Sao_Paulo'
-            }
-        );
-
-
-    /*
-     * Registra o redirecionamento.
-     */
-
-    try {
-
-        await registrarVisita({
-
-            site:
-                nomeSite,
-
-            dataHora:
-                dataHora,
-
-            ip:
-                ip,
-
-            cidade:
-                localizacao.cidade,
-
-            estado:
-                localizacao.estado,
-
-            pais:
-                localizacao.pais,
-
-            idioma:
-                idioma,
-
-            tipoDispositivo:
-                tipoDispositivo,
-
-            origem:
-                origem,
-
-            userAgent:
-                userAgent ||
-                'Não Identificado',
-
-            visitId:
-                visitId
-
-        });
-
-
-        console.log(
-            `Redirecionamento | Produto: ${produtoNome} | País: ${localizacao.codigoPais} | Destino: ${destino}`
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            'Erro ao registrar redirecionamento:',
-            error.message
-        );
-
-    }
-
-
-    /*
-     * Redireciona.
+     * REDIRECIONAMENTO IMEDIATO.
      */
 
     return res
