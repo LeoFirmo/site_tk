@@ -25,7 +25,7 @@ const produtos = {
 
     'akemi-coffee-boost': {
 
-        default: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
+        default: 'https://www.treejammer.com/L1HDNH9/9KCZZ7S/',
 
         paises: {
             US: 'https://www.pixlbonk.com/L1HDNH9/9MLGPC5/',
