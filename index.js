@@ -31,11 +31,20 @@ const produtos = {
     },
 
     'vitaslimex': {
-        default: 'https:/www.google.com.br/',
+        default: 'https://www.pixlbonk.com/L1HDNH9/9CGPSMK/',
         paises: {
-            FR: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            CH: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/',
-            BE: 'https://www.pixlbonk.com/L1HDNH9/992NJKS/'
+            DK: 'https://www.pixlbonk.com/L1HDNH9/9DLN5KJ/',
+            IT: 'https://www.pixlbonk.com/L1HDNH9/9CPN8BL/',
+            BE: 'https://www.pixlbonk.com/L1HDNH9/99883J8/',
+            NO: 'https://www.pixlbonk.com/L1HDNH9/9CLWGTD/',
+            IE: 'https://www.pixlbonk.com/L1HDNH9/9CGPSMK/',
+            UK: 'https://www.pixlbonk.com/L1HDNH9/9CGPSMK/',
+            FI: 'https://www.pixlbonk.com/L1HDNH9/99C1T1G/',
+            SE: 'https://www.pixlbonk.com/L1HDNH9/999LZ8T/',
+            FR: 'https://www.pixlbonk.com/L1HDNH9/99883J8/',
+            CH: 'https://www.pixlbonk.com/L1HDNH9/996T6RM/',
+            DE: 'https://www.pixlbonk.com/L1HDNH9/996T6RM/',
+            AT: 'https://www.pixlbonk.com/L1HDNH9/996T6RM/'
         }
     }
 };
