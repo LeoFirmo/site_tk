@@ -46,6 +46,14 @@ const produtos = {
             DE: 'https://www.pixlbonk.com/L1HDNH9/996T6RM/',
             AT: 'https://www.pixlbonk.com/L1HDNH9/996T6RM/'
         }
+    },
+
+    'corevalin': {
+        default: 'https://www.pixlbonk.com/L1HDNH9/9BPWKLG/',
+        paises: {
+            UK: 'https://www.pixlbonk.com/L1HDNH9/9BPWKLG/'
+        }
+        
     }
 };
 
