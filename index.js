@@ -48,13 +48,23 @@ const produtos = {
         }
     },
 
+
     'corevalin': {
         default: 'https://www.pixlbonk.com/L1HDNH9/9BPWKLG/',
         paises: {
-            UK: 'https://www.pixlbonk.com/L1HDNH9/9BPWKLG/'
+            UK: 'https://www.pixlbonk.com/L1HDNH9/9BPWKLG/',
+            NO: 'https://www.pixlbonk.com/L1HDNH9/9BNHNTT/',
+            NL: 'https://www.pixlbonk.com/L1HDNH9/9BM4S58/',
+            FI: 'https://www.pixlbonk.com/L1HDNH9/9BKPXDM/',
+            SE: 'https://www.pixlbonk.com/L1HDNH9/9BJC2N2/',
+            FR: 'https://www.pixlbonk.com/L1HDNH9/9BGZ5XF/',
+            CH: 'https://www.pixlbonk.com/L1HDNH9/9BFK96S/',
+            BE: 'https://www.pixlbonk.com/L1HDNH9/9BGZ5XF/',
+            DE: 'https://www.pixlbonk.com/L1HDNH9/9BFK96S/',
+            AT: 'https://www.pixlbonk.com/L1HDNH9/9BFK96S/'
         }
-        
     }
+
 };
 
 /*
