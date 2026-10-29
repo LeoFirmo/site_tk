@@ -21,6 +21,16 @@ app.use(express.urlencoded({ extended: true }));
 */
 
 const produtos = {
+    'trimoryn': {
+        default: 'https://www.diginear.com/38LTZ12Q/23ZF853X/',
+        paises: {
+            US: 'https://www.diginear.com/38LTZ12Q/23ZF853X/',
+            //BR: 'https://www.google.com.br'
+        }
+    },
+
+
+    
     'akemi-coffee-boost': {
         default: 'https://www.treejammer.com/L1HDNH9/9KCZZ7S/',
         paises: {
@@ -29,6 +39,7 @@ const produtos = {
             AU: 'https://www.treejammer.com/L1HDNH9/9KCZZ7S/'
         }
     },
+
 
     'vitaslimex': {
         default: 'https://www.pixlbonk.com/L1HDNH9/9CGPSMK/',
