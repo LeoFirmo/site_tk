@@ -29,6 +29,14 @@ const produtos = {
         }
     },
 
+    'Neuroschutz': {
+        default: 'https://www.diginear.com/38LTZ12Q/257FMSNK/',
+        paises: {
+            US: 'https://www.diginear.com/38LTZ12Q/257FMSNK/',
+            //BR: 'https://www.google.com.br'
+        }
+    },
+
 
     
     'akemi-coffee-boost': {
